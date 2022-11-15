@@ -6,15 +6,19 @@
 // Constructor
 Lattice::Lattice(int N_in, double J_in, bool ordered_in, double T_in)
 {
-  N = N_in;               // Lattice size
-  J = J_in;             //COupling constant
-  ordered = ordered_in  ;   // if true makes lattice of only 1s 
-  T = T_in;             //Temperature
-  N_spins = N*N;
+  
   kb = 1.380649e-23;
+  N = N_in;                 // Lattice size
+  J = J_in;                 //COupling constant
+  ordered = ordered_in;   // if true makes lattice of only 1s 
+  T = (J*T_in)/kb;               //Temperature
+  N_spins = N_in*N_in;
+  beta = 1/(kb*T);
+
 
   if (!ordered)
   {
+    arma::arma_rng::set_seed_random();
     spins = arma::randi(N, N, arma::distr_param(0, 1));
     spins.elem(find(spins == 0)).fill(-1);
   }
@@ -23,23 +27,23 @@ Lattice::Lattice(int N_in, double J_in, bool ordered_in, double T_in)
     spins = arma::imat(N,N).fill(1);
   }
 
-  //Storing values of exp(-kb * deltaE) for different deltaE
-  deltaE[-8] = exp(8./T);          // -8:1
-  deltaE[-4] = exp(4./T);          // -4:1
-  deltaE[0] = 1.;           // 0:1
-  deltaE[4] = exp(-4./T);    // 4:exp(-4/T)
-  deltaE[8] = exp(-8./T);   // 8: exp(-8/T)
+  //Storing values of exp(-beta * deltaE) for different deltaE
+  deltaE[-8] = 1.0;          // -8:1 , in reality ~2980, but alwways higher than 1
+  deltaE[-4] = 1.0;          // -4:1 , in reality ~54, but always higher than 1
+  deltaE[0] = 1.0;                         // 0:1
+  deltaE[4] = exp(-(4.)/(beta));            // 4:exp(-4/T)
+  deltaE[8] = exp(-(8.)/(beta));            // 8: exp(-8/T)
 }
 
 // Change the spin of a single particle in the lattice
 void Lattice::change_spin(int i, int j)
 {
-  spins(i,j) = spins(i,j) * (-1);
+  spins(i,j) = -1*spins(i,j);
 }
 
 
 // Calculate the total energy of the system
-arma::vec Lattice::total_energy(arma::imat spins_m)
+int Lattice::total_energy(arma::imat spins_m)
 {
     //spins
     // {-1, -1, +1}
@@ -69,128 +73,75 @@ arma::vec Lattice::total_energy(arma::imat spins_m)
     spins_o.insert_rows(0,spins_o.row(N-1));
     spins_o.insert_cols(0,spins_o.col(N-1));
 
-    spins_o(0,0) = 0; //Zero for clarity, wont be used
+    spins_o(0,0) = 0; //Zero for clarity, wont be used, corner.
 
-    arma::vec Es = arma::vec(2);
+    int E = 0;
 
-  double E_tot =  0;
-  double E2_tot = 0;
+  int E_tot =  0;
+  //double E2_tot = 0;
   for(int i = 1; i < N+1; i++)
   {
     for (int j = 1; j < N+1; j++)
     {
-        //neighbour one row up
-        E_tot += spins_o(i-1, j)*spins_o(i, j);
-        E2_tot += E_tot*E_tot;
-        //neighbour one column back
-        E_tot += spins_o(i, j-1)*spins_o(i, j);
-        E2_tot += E_tot*E_tot;
+        //neighbour one row up and neighbour one column back
+        E_tot +=  spins_o(i-1, j)*spins_o(i, j) + spins_o(i, j-1)*spins_o(i, j);;
     }
 
   }
-  Es(0) = -J*E_tot;
-  Es(1) = -J*E2_tot;
+  E = -J*E_tot;
+  //Es(1) = abs(-J*E2_tot);
 
-  return Es;
+  return E;
 }
-arma::vec Lattice::total_magnetization(arma::imat spins_m)
+
+int Lattice::energy_single(int i, int j)
 {
-    double M_tot = 0;
-    double M_2_tot = 0;
-    arma::vec Ms = arma::vec(2);
+  int E_single = 0;
+  int s_mid   = spins(i, j);
+  int s_left  = spins(i, (j - 1 + N) % N);  // if j = 0 -> L-1%L = L-1
+  int s_right = spins(i, (j + 1) % N);      // if j = L -1 -> L%L = 0
+  int s_up    = spins((i - 1 + N) % N, j);  // if i = 0 -> -1 + L%L = L-1
+  int s_down  = spins((i + 1) % N, j);      // if i = L-1 -> L%L = 0
+
+  //std::cout << "spin left" << std::endl;
+  //std::cout << s_left << std::endl;
+  //std::cout << std::endl;
+  //std::cout << "spin right" << std::endl;
+  //std::cout << s_right << std::endl;
+  //std::cout << std::endl;
+  //std::cout << "spin up" << std::endl;
+  //std::cout << s_up << std::endl;
+  //std::cout << std::endl;
+  //std::cout << "spin down" << std::endl;
+  //std::cout << s_down << std::endl;
+  //std::cout << std::endl;
+  //std::cout << "spin mid" << std::endl;
+  //std::cout << s_mid << std::endl;
+  //std::cout << std::endl;
+
+  E_single = -J*s_mid*(s_left + s_right + s_up + s_down); // E = -J*sum over bonds(E_s*E_neighbour)
+
+  //std::cout << "E_single" << std::endl;
+  //std::cout << E_single << std::endl;
+  //std::cout << std::endl;
+
+  return E_single;
+}
+
+int Lattice::total_magnetization(arma::imat spins_m)
+{
+    int M_tot = 0;
     for (int i = 0; i < N; i++)
      {
         for (int j = 0; j < N; j++)
         {
             M_tot += spins(i,j);
-            M_2_tot += M_tot*M_tot;
+            //M_2_tot += M_tot*M_tot;
         }        
      }
-     Ms(0) = abs(M_tot);
-     Ms(1) = M_2_tot;
-    return Ms;
+
+    return M_tot;
 }
-
-//double Lattice::sample_boltzmann(double T, arma::mat spin_m, double Z)
-//{
-//    double E_s, beta, kb;
-//
-//    kb = 1.380649 * pow(10.,-23.);
-//
-//    beta = 1./(kb*T);
-//
-//    E_s = total_energy(spin_m);
-//
-//    p_s = 1./Z * exp(-beta*E_s);
-//
-//    return p_s;
-//}
-
-
-//double Lattice::normalization_constant(double T)
-//{
-    //All possible states
-
-    // 1  1  1  1
-
-    // 1  1  1 -1
-    // 1  1 -1  1
-    // 1 -1  1  1
-    //-1  1  1  1
-
-    // 1  1 -1 -1
-    // 1 -1 -1  1
-    //-1 -1  1  1    
-    //-1  1  1 -1
-    //-1  1 -1  1
-    // 1 -1  1 -1
-
-    // 1 -1 -1 -1
-    //-1  1 -1 -1
-    //-1 -1  1 -1
-    //-1 -1 -1  1
-
-    //-1 -1 -1 -1
-
-
-    // 1  1  1  1 , flip 0
-    // 1  1  1 -1 , flip 1
-    // 1  1 -1 -1 , flip 0
-    // 1  1 -1  1 , flip 1
-
-    // 1 -1 -1  1 , flip 2
-    // 1 -1 -1 -1 , flip 1
-    // 1 -1  1 -1 , flip 0
-    // 1 -1  1  1 , flip 3
-
-    //-1 -1  1  1, flip 0
-    //-1 -1  1 -1, flip 1
-    //-1 -1 -1  1, flip 0
-    //-1 -1 -1 -1, flip 2
-
-    //-1  1 -1 -1, flip 0
-    //-1  1 -1  1, flip 1
-    //-1  1  1  1, flip 0
-    //-1  1  1 -1, 
-
-    
-
-    //-1 -1 -1 -1
-    //-1 -1 -1  1
-    //-1 -1  1  1
-    //-1 -1  1 -1
-
-
-    
-    //-1  1 -1 -1
-    //-1  1 -1  1
-    //-1  1  1  1
-    //-1  1  1 -1
-
-
-//}
-
-
 
 void Lattice::markov_mc(int n_iter)
 {
@@ -212,78 +163,198 @@ void Lattice::markov_mc(int n_iter)
     //We need to calculate different things for the state and store them
 
     //We need to update our state
+  //Random seed
 
   //initial values
-  MECX = arma::mat(n_iter+1, 4).fill(0.);
-  MECX(0,0) = total_magnetization(spins)(0);
-  MECX(0,1) = total_energy(spins)(0);
+  MECX = arma::mat(n_iter+1, 2).fill(0.);
+  int E0, E1, M0, M1;
 
-  int i = 0;
-  while(i < n_iter)
+  E0 = total_energy(spins);      
+  M0 = total_magnetization(spins);
+
+  MECX(0,0) = M0/N_spins;
+  MECX(0,1) = E0/N_spins;
+
+  //Generate N_spins random indexes
+  arma::arma_rng::set_seed_random();
+  arma::imat rand_is = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
+  arma::imat rand_js = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
+
+  //Generate N_pins random floats between 0 and 1(
+  arma::mat rs(n_iter, N_spins, arma::fill::randu);
+  int iter = 0;
+  for (int i = 0; i < n_iter-1; i++)
   {
-      i++;
-    //Suggested algorithm
-
-    arma::imat state0 = spins;
-
-    //1. Generate candidate state by flipping one random spin
-
-    int rand_i = arma::randi(arma::distr_param(0, N-1));
-    int rand_j = arma::randi(arma::distr_param(0, N-1));
-
-    change_spin(rand_i,rand_j);
-
-    arma::imat state1 = spins;
-
-    //2. Calculate the ratio p(s')/p(si), do this efficiently!(stuff cancels)
-
-    int E0 = total_energy(state0)(0);
-    int E1 = total_energy(state1)(0);
-
-    double p1_p0 = deltaE[(E1 - E0)];
-    double A = std::min(1.0, p1_p0);
-
-    //p(s')/p(si) = (exp(-kb*E(s'))/Z) / (exp(-kb*E(si))/Z) = exp(-kb*E(s') - -kb*E(si) ) = exp(-kb*(E(s') - E(si)) ) 
-
-    //3. Generate r form uniform distribution, accept if A > r, reject if A < r
-    std::default_random_engine generator;
-    std::uniform_real_distribution<double> distribution(0.0,1.0);
-    double r = distribution(generator);
-
-    if (A < r)
+    //Algorithm
+    for (int j = 0; j < N_spins; j++)
     {
-      //New state rejected
-      spins = state0;
+      //1. Generate candidate state by flipping one random spin
+      change_spin(rand_is(i,j),rand_js(i,j));
 
-      double M0 = total_magnetization(spins)(0)/N_spins;
-      //C = (1./(kb*T*T)) * (E^2)
+      //calculate energy
+      E1 =  total_energy(spins);
 
-      MECX(i,0) = M0;
-      MECX(i,1) = E0/N_spins;
+      //2. Calculate the ratio p(s')/p(si)
+      M1 = total_magnetization(spins);
+
+      int dE = (E1 - E0);  
+
+      double p1_p0 = deltaE[dE];
+      double A = std::min(1.0, p1_p0);
+
+      //3. Generate r form uniform distribution
+      double r = rs(i,j);
 
 
+      //4. Accept if A > r, reject if A < r
+      if (A < r)
+      {
+        //New state rejected
+        change_spin(rand_is(i,j),rand_js(i,j));
+      }
+      else
+      {
+        //New state accepted
+        E0 += dE;
+        M0 += (M1 - M0);
+      }
     }
-    else
+    MECX(i+1,0) = M0/N_spins;
+    MECX(i+1,1) = E0/N_spins;
+
+    iter++;
+    if (iter%20000 == 0)
     {
-      //New state accepted
-      double M1 = total_magnetization(spins)(0)/N_spins;
-      //C = (1./(kb*T*T)) * (E^2)
-
-      MECX(i,0) = M1;
-      MECX(i,1) = E1/N_spins;
-
-      std::cout <<std::endl;
-      std::cout << total_energy(spins)(0) << std::endl;
-      std::cout << std::endl;   
+      std::cout << std::endl;
+      std::cout << iter << std::endl;
+      std::cout << std::endl;
     }
-
-     
   }
-    //4. Repeat 1-> N times, is one MC cycle.
-    //5. Calculate quantities
 }
 
 
+void Lattice::markov_mc2(int n_iter)
+{
+
+  //initial values
+  std::cout << std::endl;
+  std::cout << T << std::endl;
+  std::cout << std::endl;
+
+  MECX = arma::mat(n_iter, 2).fill(0.);
+  arma::ivec Ms0 = arma::ivec(2).fill(0);
+  arma::ivec Ms1 = arma::ivec(2).fill(0);
+
+  int E = total_energy(spins);      
+  int M = total_magnetization(spins);
+
+  MECX(0,0) = M/N_spins;
+  MECX(0,1) = M/N_spins;
+
+  //Generate n_iter x N_spins random indexes
+  arma::arma_rng::set_seed_random();
+  arma::imat rand_is = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
+  arma::imat rand_js = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
+
+  //Generate n_iter x N_spins random floats between 0 and 1
+  arma::mat rs(n_iter, N_spins, arma::fill::randu);
+
+  //Test
+  int rejected = 0;
+  int accepted = 0;
+
+  //Start MC cycle
+  int iter = 0;
+  for (int i = 0; i < n_iter-1; i++)
+  {  
+    //Inner loop
+    for (int j = 0; j < N_spins; j++)
+    {
+      //1. Generate candidate state by flipping one random spin
+      int i_ind = rand_is(i,j);
+      int j_ind = rand_js(i,j);
+
+      int M_s0 = spins(i_ind, j_ind);
+      int E_s0 = energy_single(i_ind, j_ind );  
+
+      //std::cout << "spin0" << std::endl;
+      //std::cout << M_s0 << std::endl;
+      //std::cout << std::endl;  
+
+      //std::cout << "Es0" << std::endl;
+      //std::cout << E_s0 << std::endl;
+      //std::cout << std::endl;  
+
+      change_spin(i_ind, j_ind);
+      int M_s1 = spins(i_ind, j_ind);
+      int E_s1 = energy_single(i_ind, j_ind );
+
+      //std::cout << "spin1" << std::endl;
+      //std::cout << M_s1 << std::endl;
+      //std::cout << std::endl;  
+
+      //std::cout << "Es1" << std::endl;
+      //std::cout << E_s1 << std::endl;
+      //std::cout << std::endl;
+      int dE = E_s1 - E_s0; 
+      int dM = M_s1 - M_s0;
+
+      //2. Calculate the ratio p(s')/p(si)
+      double p1_p0 = deltaE[dE];
+      double A = std::min(1.0, p1_p0);
+
+      //std::cout << "dE" << std::endl;
+      //std::cout << dE << std::endl;
+      //std::cout << std::endl;  
+
+      //std::cout << "p1/p0" << std::endl;
+      //std::cout << p1_p0 << std::endl;
+      //std::cout << std::endl;  
+      //    
+      //std::cout << "Acceptance Rate" << std::endl;
+      //std::cout << A << std::endl;
+      //std::cout << std::endl;  
+
+      //3. Generate r form uniform distribution
+      //4. Accept if A > r, reject if A < r
+
+      if (A < rs(i,j))
+      {
+        //New state rejected
+        change_spin(i_ind, j_ind);
+        rejected += 1;
+      }
+      else
+      {
+        M += dM;
+        E += dE;
+        //std::cout << std::endl;
+        //std::cout << "change" << std::endl;
+        //std::cout << std::endl;
+        accepted += 1;
+
+      }
+    }
+    MECX(i,0) = M/N_spins;
+    MECX(i,1) = E/N_spins;
+    iter++;
+
+    //std::cout << "accepted" << std::endl;
+    //std::cout << accepted << std::endl;
+    //std::cout << std::endl;  
+
+    //std::cout << "rejected" << std::endl;
+    //std::cout << rejected << std::endl;
+    //std::cout << std::endl;   
+
+    if (iter%20000 == 0)
+    {
+      std::cout << std::endl;
+      std::cout << iter << std::endl;
+      std::cout << std::endl;
+    }
+  }
+}
 
 
 
