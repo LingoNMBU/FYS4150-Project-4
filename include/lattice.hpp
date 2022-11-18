@@ -33,7 +33,7 @@ class Lattice
 
     void markov_mc(int n_iter);
 
-    void markov_mc2(int n_iter);
+    //void markov_mc2(int n_iter);
 
     double sample_boltzmann(double T, arma::imat spin_m, double Z);
 

@@ -5,6 +5,7 @@
 int main()
 {
     std::cout.precision(17);
+
     bool test0 = false;
     if (test0)
     {
@@ -44,14 +45,22 @@ int main()
     std::cout << std::endl;   
     }
 
-    bool test1 = true;
+    bool test1 = false;
     if (test1)
     {
     Lattice lattice3 = Lattice(10, 1, true, 2.4);  
     std::cout << std::endl;
     std::cout << lattice3.spins << std::endl;
     std::cout << std::endl;  
-    lattice3.markov_mc2(1000);
+    lattice3.markov_mc(1000);
+    }
+
+    bool test2 = true;
+    if (test2)
+    {
+        Lattice lattice54 = Lattice(20, 1, true, 2.4);
+        lattice54.markov_mc(10e2);
+        lattice54.MECX.save("MECX_5_24_ord20.csv", arma::csv_ascii);
     }
 
 

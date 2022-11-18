@@ -7,7 +7,7 @@
 Lattice::Lattice(int N_in, double J_in, bool ordered_in, double T_in)
 {
   
-  kb = 1.380649e-23;
+  kb = 1.380649 * pow(10, -23);
   N = N_in;                 // Lattice size
   J = J_in;                 //COupling constant
   ordered = ordered_in;   // if true makes lattice of only 1s 
@@ -31,8 +31,8 @@ Lattice::Lattice(int N_in, double J_in, bool ordered_in, double T_in)
   deltaE[-8] = 1.0;          // -8:1 , in reality ~2980, but alwways higher than 1
   deltaE[-4] = 1.0;          // -4:1 , in reality ~54, but always higher than 1
   deltaE[0] = 1.0;                         // 0:1
-  deltaE[4] = exp(-(4.)/(beta));            // 4:exp(-4/T)
-  deltaE[8] = exp(-(8.)/(beta));            // 8: exp(-8/T)
+  deltaE[4] = exp(-(4.)*(beta));            // 4:exp(-4/T)
+  deltaE[8] = exp(-(8.)*(beta));            // 8: exp(-8/T)
 }
 
 // Change the spin of a single particle in the lattice
@@ -136,120 +136,34 @@ int Lattice::total_magnetization(arma::imat spins_m)
         for (int j = 0; j < N; j++)
         {
             M_tot += spins(i,j);
-            //M_2_tot += M_tot*M_tot;
         }        
      }
-
     return M_tot;
 }
 
+
 void Lattice::markov_mc(int n_iter)
 {
-    //We need a probability distribution from which we sample our states
-
-    //We need a method to propose a new state for the system
-    //we need a method for accepting a new state
-
-    //Metropolis Hasting acceptance rule
-    //P(x -> x') = T(xi -> x')A(xi -> x')
-    //1. Generate x' according to T(xi -> x')
-    //2. Compute acceptance probability as A = min(1, p(x')/p(xi) * T(x' ->  xi)/ T(xi -> x'))
-
-    //   If T(x' -> xi) = T(xi -> x'), simplifies to Metropolis rule
-
-    //Hint: When computing P(x')/p(xi), computing the normalization constant can be quite expensive, and so calculating the ratio is not necessary. Things cancel
-
-
-    //We need to calculate different things for the state and store them
-
-    //We need to update our state
-  //Random seed
-
-  //initial values
-  MECX = arma::mat(n_iter+1, 2).fill(0.);
-  int E0, E1, M0, M1;
-
-  E0 = total_energy(spins);      
-  M0 = total_magnetization(spins);
-
-  MECX(0,0) = M0/N_spins;
-  MECX(0,1) = E0/N_spins;
-
-  //Generate N_spins random indexes
-  arma::arma_rng::set_seed_random();
-  arma::imat rand_is = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
-  arma::imat rand_js = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
-
-  //Generate N_pins random floats between 0 and 1(
-  arma::mat rs(n_iter, N_spins, arma::fill::randu);
-  int iter = 0;
-  for (int i = 0; i < n_iter-1; i++)
-  {
-    //Algorithm
-    for (int j = 0; j < N_spins; j++)
-    {
-      //1. Generate candidate state by flipping one random spin
-      change_spin(rand_is(i,j),rand_js(i,j));
-
-      //calculate energy
-      E1 =  total_energy(spins);
-
-      //2. Calculate the ratio p(s')/p(si)
-      M1 = total_magnetization(spins);
-
-      int dE = (E1 - E0);  
-
-      double p1_p0 = deltaE[dE];
-      double A = std::min(1.0, p1_p0);
-
-      //3. Generate r form uniform distribution
-      double r = rs(i,j);
-
-
-      //4. Accept if A > r, reject if A < r
-      if (A < r)
-      {
-        //New state rejected
-        change_spin(rand_is(i,j),rand_js(i,j));
-      }
-      else
-      {
-        //New state accepted
-        E0 += dE;
-        M0 += (M1 - M0);
-      }
-    }
-    MECX(i+1,0) = M0/N_spins;
-    MECX(i+1,1) = E0/N_spins;
-
-    iter++;
-    if (iter%20000 == 0)
-    {
-      std::cout << std::endl;
-      std::cout << iter << std::endl;
-      std::cout << std::endl;
-    }
-  }
-}
-
-
-void Lattice::markov_mc2(int n_iter)
-{
-
-  //initial values
-  std::cout << std::endl;
-  std::cout << T << std::endl;
+  std::cout << "Temperature" << std::endl;
+  std::cout << T*kb << std::endl;
   std::cout << std::endl;
 
+  std::cout << "Size" << std::endl;
+  std::cout << N << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "Is ordered" << std::endl;
+  std::cout << ordered << std::endl;
+  std::cout << std::endl;
+
+  //initial values
   MECX = arma::mat(n_iter, 2).fill(0.);
-  arma::ivec Ms0 = arma::ivec(2).fill(0);
-  arma::ivec Ms1 = arma::ivec(2).fill(0);
 
-  int E = total_energy(spins);      
-  int M = total_magnetization(spins);
+  int M = total_energy(spins);
+  int E = total_magnetization(spins);
 
-  MECX(0,0) = M/N_spins;
-  MECX(0,1) = M/N_spins;
+  MECX(0,0) = M;
+  MECX(0,1) = E;
 
   //Generate n_iter x N_spins random indexes
   arma::arma_rng::set_seed_random();
@@ -259,102 +173,183 @@ void Lattice::markov_mc2(int n_iter)
   //Generate n_iter x N_spins random floats between 0 and 1
   arma::mat rs(n_iter, N_spins, arma::fill::randu);
 
-  //Test
+  //For test
   int rejected = 0;
   int accepted = 0;
 
   //Start MC cycle
   int iter = 0;
-  for (int i = 0; i < n_iter-1; i++)
+  for (int i = 0; i < n_iter; i++)
   {  
-    //Inner loop
     for (int j = 0; j < N_spins; j++)
     {
       //1. Generate candidate state by flipping one random spin
       int i_ind = rand_is(i,j);
       int j_ind = rand_js(i,j);
 
+      //Find magnetization and energy of the spin that is going to flip
       int M_s0 = spins(i_ind, j_ind);
       int E_s0 = energy_single(i_ind, j_ind );  
 
-      //std::cout << "spin0" << std::endl;
-      //std::cout << M_s0 << std::endl;
-      //std::cout << std::endl;  
-
-      //std::cout << "Es0" << std::endl;
-      //std::cout << E_s0 << std::endl;
-      //std::cout << std::endl;  
-
+      //change the spin
       change_spin(i_ind, j_ind);
+
+      //Find magnetization and energy after the spin is flipped
       int M_s1 = spins(i_ind, j_ind);
       int E_s1 = energy_single(i_ind, j_ind );
 
-      //std::cout << "spin1" << std::endl;
-      //std::cout << M_s1 << std::endl;
-      //std::cout << std::endl;  
-
-      //std::cout << "Es1" << std::endl;
-      //std::cout << E_s1 << std::endl;
-      //std::cout << std::endl;
+      //Find the change in magnetization and energy
       int dE = E_s1 - E_s0; 
       int dM = M_s1 - M_s0;
+
+      //std::cout << "dE" << std::endl;
+      //std::cout << dE << std::endl;
+      //std::cout << std::endl;
 
       //2. Calculate the ratio p(s')/p(si)
       double p1_p0 = deltaE[dE];
       double A = std::min(1.0, p1_p0);
 
-      //std::cout << "dE" << std::endl;
-      //std::cout << dE << std::endl;
-      //std::cout << std::endl;  
-
-      //std::cout << "p1/p0" << std::endl;
+      //std::cout << "p1 / p0" << std::endl;
       //std::cout << p1_p0 << std::endl;
-      //std::cout << std::endl;  
-      //    
-      //std::cout << "Acceptance Rate" << std::endl;
-      //std::cout << A << std::endl;
-      //std::cout << std::endl;  
-
-      //3. Generate r form uniform distribution
-      //4. Accept if A > r, reject if A < r
+      //std::cout << std::endl;
 
       if (A < rs(i,j))
       {
         //New state rejected
         change_spin(i_ind, j_ind);
+
         rejected += 1;
       }
       else
       {
+        //New state accepted
         M += dM;
         E += dE;
-        //std::cout << std::endl;
-        //std::cout << "change" << std::endl;
-        //std::cout << std::endl;
-        accepted += 1;
 
+        accepted += 1;
       }
     }
-    MECX(i,0) = M/N_spins;
-    MECX(i,1) = E/N_spins;
+
+    MECX(i,0) = M;
+    MECX(i,1) = E;
     iter++;
 
-    //std::cout << "accepted" << std::endl;
-    //std::cout << accepted << std::endl;
-    //std::cout << std::endl;  
-
-    //std::cout << "rejected" << std::endl;
-    //std::cout << rejected << std::endl;
-    //std::cout << std::endl;   
-
-    if (iter%20000 == 0)
+    if (iter%100000 == 0)
     {
-      std::cout << std::endl;
+      std::cout << "iteration" << std::endl;
       std::cout << iter << std::endl;
+      std::cout << std::endl;
+
+      std::cout << "Energy per spin" << std::endl;
+      std::cout << E << std::endl;
+      std::cout << std::endl;
+
+      std::cout << "Magnetization per spin" << std::endl;
+      std::cout << M << std::endl;
+      std::cout << std::endl;
+
+      std::cout << "accepted changes" <<std::endl;
+      std::cout << accepted << std::endl;
+      std::cout << std::endl;
+
+      std::cout << "rejected changes" <<std::endl;
+      std::cout << rejected << std::endl;
       std::cout << std::endl;
     }
   }
 }
+
+//void Lattice::markov_mc2(int n_iter)
+//{
+//    //We need a probability distribution from which we sample our states
+
+//    //We need a method to propose a new state for the system
+//    //we need a method for accepting a new state
+
+//    //Metropolis Hasting acceptance rule
+//    //P(x -> x') = T(xi -> x')A(xi -> x')
+//    //1. Generate x' according to T(xi -> x')
+//    //2. Compute acceptance probability as A = min(1, p(x')/p(xi) * T(x' ->  xi)/ T(xi -> x'))
+
+//    //   If T(x' -> xi) = T(xi -> x'), simplifies to Metropolis rule
+
+//    //Hint: When computing P(x')/p(xi), computing the normalization constant can be quite expensive, and so calculating the ratio is not necessary. Things cancel
+
+
+//    //We need to calculate different things for the state and store them
+
+//    //We need to update our state
+//  //Random seed
+
+//  //initial values
+//  MECX = arma::mat(n_iter+1, 2).fill(0.);
+//  int E0, E1, M0, M1;
+
+//  E0 = total_energy(spins);      
+//  M0 = total_magnetization(spins);
+
+//  MECX(0,0) = M0/N_spins;
+ // MECX(0,1) = E0/N_spins;
+
+ // //Generate N_spins random indexes
+ // arma::arma_rng::set_seed_random();
+ // arma::imat rand_is = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
+ // arma::imat rand_js = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
+
+ // //Generate N_pins random floats between 0 and 1(
+ // arma::mat rs(n_iter, N_spins, arma::fill::randu);
+ // int iter = 0;
+ // for (int i = 0; i < n_iter-1; i++)
+ // {
+ //   //Algorithm
+ //   for (int j = 0; j < N_spins; j++)
+ //   {
+ //     //1. Generate candidate state by flipping one random spin
+ //     change_spin(rand_is(i,j),rand_js(i,j));
+
+ //     //calculate energy
+ //     E1 =  total_energy(spins);
+
+ //     //2. Calculate the ratio p(s')/p(si)
+ //     M1 = total_magnetization(spins);
+
+ //     int dE = (E1 - E0);  
+
+ //     double p1_p0 = deltaE[dE];
+ //     double A = std::min(1.0, p1_p0);
+
+ //     //3. Generate r form uniform distribution
+ //     double r = rs(i,j);
+
+
+ //     //4. Accept if A > r, reject if A < r
+ //     if (A < r)
+ //     {
+ //       //New state rejected
+ //       change_spin(rand_is(i,j),rand_js(i,j));
+ //     }
+ //     else
+ //     {
+ //       //New state accepted
+ //       E0 += dE;
+ //       M0 += (M1 - M0);
+ //     }
+ //   }
+ //   MECX(i+1,0) = M0/N_spins;
+ //   MECX(i+1,1) = E0/N_spins;
+
+ //   iter++;
+ //   if (iter%20000 == 0)
+ //   {
+ //     std::cout << std::endl;
+ //     std::cout << iter << std::endl;
+ //     std::cout << std::endl;
+ //   }
+ // }
+//}
+
+
 
 
 
