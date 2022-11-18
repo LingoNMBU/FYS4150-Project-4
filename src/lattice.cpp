@@ -8,7 +8,7 @@ Lattice::Lattice(int N_in, double J_in, bool ordered_in, double T_in)
 {
   
   kb = 1.380649 * pow(10, -23);
-  N = N_in;                 // Lattice size
+  N = N_in;                 // Lattice size, height and width
   J = J_in;                 //COupling constant
   ordered = ordered_in;   // if true makes lattice of only 1s 
   T = (J*T_in)/kb;               //Temperature
@@ -73,7 +73,7 @@ int Lattice::total_energy(arma::imat spins_m)
     spins_o.insert_rows(0,spins_o.row(N-1));
     spins_o.insert_cols(0,spins_o.col(N-1));
 
-    spins_o(0,0) = 0; //Zero for clarity, wont be used, corner.
+    spins_o(0,0) = 0; //Zero for clarity and test, wont be used, corner.
 
     int E = 0;
 
@@ -98,10 +98,10 @@ int Lattice::energy_single(int i, int j)
 {
   int E_single = 0;
   int s_mid   = spins(i, j);
-  int s_left  = spins(i, (j - 1 + N) % N);  // if j = 0 -> L-1%L = L-1
-  int s_right = spins(i, (j + 1) % N);      // if j = L -1 -> L%L = 0
-  int s_up    = spins((i - 1 + N) % N, j);  // if i = 0 -> -1 + L%L = L-1
-  int s_down  = spins((i + 1) % N, j);      // if i = L-1 -> L%L = 0
+  int s_left  = spins(i, (j - 1 + N) % N);  // if j = 0   -> N-1  -> N-1%N = N-1
+  int s_right = spins(i, (j + 1) % N);      // if j = N-1 -> N    -> N%N   = 0
+  int s_up    = spins((i - 1 + N) % N, j);  // if i = 0   -> N-1  -> N-1%N = N-1
+  int s_down  = spins((i + 1) % N, j);      // if i = N-1 -> N    -> N%N   = 0
 
   //std::cout << "spin left" << std::endl;
   //std::cout << s_left << std::endl;
@@ -119,7 +119,7 @@ int Lattice::energy_single(int i, int j)
   //std::cout << s_mid << std::endl;
   //std::cout << std::endl;
 
-  E_single = -J*s_mid*(s_left + s_right + s_up + s_down); // E = -J*sum over bonds(E_s*E_neighbour)
+  E_single = -J*(s_mid*s_left + s_mid*s_right + s_mid*s_up + s_mid*s_down); // E = -J*sum over bonds(E_s*E_neighbour)
 
   //std::cout << "E_single" << std::endl;
   //std::cout << E_single << std::endl;
@@ -130,15 +130,19 @@ int Lattice::energy_single(int i, int j)
 
 int Lattice::total_magnetization(arma::imat spins_m)
 {
-    int M_tot = 0;
-    for (int i = 0; i < N; i++)
-     {
-        for (int j = 0; j < N; j++)
-        {
-            M_tot += spins(i,j);
-        }        
-     }
-    return M_tot;
+  int M_tot = 0;
+  for (int i = 0; i < N; i++)
+  {
+      for (int j = 0; j < N; j++)
+      {
+          M_tot += spins(i,j);
+      }        
+  }
+  std::cout << "M_tot" << std::endl;
+  std::cout << M_tot << std::endl;
+  std::cout << std::endl;
+
+  return M_tot;
 }
 
 
@@ -157,82 +161,86 @@ void Lattice::markov_mc(int n_iter)
   std::cout << std::endl;
 
   //initial values
-  MECX = arma::mat(n_iter, 2).fill(0.);
+  ME = arma::mat(n_iter, 2).fill(0.);
+  ME(0,1) = total_energy(spins);
+  ME(0,0) = total_magnetization(spins);
 
-  int M = total_energy(spins);
-  int E = total_magnetization(spins);
-
-  MECX(0,0) = M;
-  MECX(0,1) = E;
-
-  //Generate n_iter x N_spins random indexes
-  arma::arma_rng::set_seed_random();
-  arma::imat rand_is = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
-  arma::imat rand_js = arma::randi(n_iter, N_spins, arma::distr_param(0, N-1));
+  //std::cout << "M0" <<std::endl;
+  //std::cout << ME(0,0) << std::endl;
+  //std::cout << std::endl;
 
   //Generate n_iter x N_spins random floats between 0 and 1
   arma::mat rs(n_iter, N_spins, arma::fill::randu);
 
   //For test
-  int rejected = 0;
-  int accepted = 0;
+  //int rejected = 0;
+  //int accepted = 0;
 
   //Start MC cycle
   int iter = 0;
-  for (int i = 0; i < n_iter; i++)
+  for (int i = 1; i < n_iter; i++)
   {  
+    //Generate random indexes and candidate numbers
+    arma::arma_rng::set_seed_random();
+    arma::ivec rand_is = arma::randi(N_spins, arma::distr_param(0, N-1));
+    arma::ivec rand_js = arma::randi(N_spins, arma::distr_param(0, N-1));
+    arma::vec rs(N_spins, arma::fill::randu);
+
+    int M_new = ME(i-1,0);
+    int E_new = ME(i-1,1);
+
     for (int j = 0; j < N_spins; j++)
     {
       //1. Generate candidate state by flipping one random spin
-      int i_ind = rand_is(i,j);
-      int j_ind = rand_js(i,j);
+      int i_ind = rand_is(j);
+      int j_ind = rand_js(j);
 
       //Find magnetization and energy of the spin that is going to flip
-      int M_s0 = spins(i_ind, j_ind);
       int E_s0 = energy_single(i_ind, j_ind );  
 
       //change the spin
       change_spin(i_ind, j_ind);
 
       //Find magnetization and energy after the spin is flipped
-      int M_s1 = spins(i_ind, j_ind);
+      int new_spin = spins(i_ind, j_ind);
       int E_s1 = energy_single(i_ind, j_ind );
 
       //Find the change in magnetization and energy
       int dE = E_s1 - E_s0; 
-      int dM = M_s1 - M_s0;
 
-      //std::cout << "dE" << std::endl;
-      //std::cout << dE << std::endl;
+      //std::cout << "dM" << std::endl;
+      //std::cout << new_spin*2 << std::endl;
       //std::cout << std::endl;
 
       //2. Calculate the ratio p(s')/p(si)
       double p1_p0 = deltaE[dE];
       double A = std::min(1.0, p1_p0);
 
-      //std::cout << "p1 / p0" << std::endl;
-      //std::cout << p1_p0 << std::endl;
-      //std::cout << std::endl;
-
-      if (A < rs(i,j))
+      if (A < rs(j))
       {
         //New state rejected
         change_spin(i_ind, j_ind);
 
-        rejected += 1;
+        //rejected += 1;
       }
       else
       {
         //New state accepted
-        M += dM;
-        E += dE;
+        M_new += new_spin*2;
+        E_new += dE;
 
-        accepted += 1;
+
+        //accepted += 1;
       }
     }
 
-    MECX(i,0) = M;
-    MECX(i,1) = E;
+    ME(i,0) = M_new;
+    ME(i,1) = E_new;
+    //std::cout << "M" <<std::endl;
+    //std::cout << ME(i,0) << std::endl;
+    //std::cout << std::endl;
+    //Write to file
+
     iter++;
 
     if (iter%100000 == 0)
@@ -241,21 +249,21 @@ void Lattice::markov_mc(int n_iter)
       std::cout << iter << std::endl;
       std::cout << std::endl;
 
-      std::cout << "Energy per spin" << std::endl;
-      std::cout << E << std::endl;
+      std::cout << "Energy" << std::endl;
+      std::cout << E_new << std::endl;
       std::cout << std::endl;
 
-      std::cout << "Magnetization per spin" << std::endl;
-      std::cout << M << std::endl;
+      std::cout << "Magnetization" << std::endl;
+      std::cout << M_new << std::endl;
       std::cout << std::endl;
 
-      std::cout << "accepted changes" <<std::endl;
-      std::cout << accepted << std::endl;
-      std::cout << std::endl;
+      //std::cout << "accepted changes" <<std::endl;
+      //std::cout << accepted << std::endl;
+      //std::cout << std::endl;
 
-      std::cout << "rejected changes" <<std::endl;
-      std::cout << rejected << std::endl;
-      std::cout << std::endl;
+      //std::cout << "rejected changes" <<std::endl;
+      //std::cout << rejected << std::endl;
+      //std::cout << std::endl;
     }
   }
 }

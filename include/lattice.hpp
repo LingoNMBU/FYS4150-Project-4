@@ -17,7 +17,7 @@ class Lattice
     bool ordered;
     arma::imat spins;
     std::map<int, double> deltaE;
-    arma::mat MECX;
+    arma::mat ME;
 
 
     //constructor

@@ -58,14 +58,9 @@ int main()
     bool test2 = true;
     if (test2)
     {
-        Lattice lattice54 = Lattice(20, 1, true, 2.4);
-        lattice54.markov_mc(10e2);
-        lattice54.MECX.save("MECX_5_24_ord20.csv", arma::csv_ascii);
+        Lattice lattice4 = Lattice(2, 1, true, 2.4);
+        lattice4.markov_mc(10);
     }
-
-
-
-
 
     return 0;
 }
