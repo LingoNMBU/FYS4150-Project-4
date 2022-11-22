@@ -58,8 +58,8 @@ int main()
     bool test2 = true;
     if (test2)
     {
-        Lattice lattice4 = Lattice(2, 1, true, 2.4);
-        lattice4.markov_mc(10);
+        Lattice lattice4 = Lattice(40, 1, true, 2.4);
+        lattice4.markov_mc(10e5);
     }
 
     return 0;

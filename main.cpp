@@ -9,7 +9,7 @@ int main()
     bool prob4 = true;
     if (prob4)
     {
-        Lattice lattice4 = Lattice(2, 1, false, 1.0);
+        Lattice lattice4 = Lattice(40, 1, false, 1.0);
         lattice4.markov_mc(10e5);
         lattice4.ME.save("ME_4.csv", arma::csv_ascii);
     }

@@ -138,10 +138,6 @@ int Lattice::total_magnetization(arma::imat spins_m)
           M_tot += spins(i,j);
       }        
   }
-  std::cout << "M_tot" << std::endl;
-  std::cout << M_tot << std::endl;
-  std::cout << std::endl;
-
   return M_tot;
 }
 
@@ -165,13 +161,14 @@ void Lattice::markov_mc(int n_iter)
   ME(0,1) = total_energy(spins);
   ME(0,0) = total_magnetization(spins);
 
+  //std::cout << "size ME" << std::endl;
+  //std::cout << arma::size(ME) << std::endl;
+  //std::cout << std::endl;  
+
   //std::cout << "M0" <<std::endl;
   //std::cout << ME(0,0) << std::endl;
   //std::cout << std::endl;
-
-  //Generate n_iter x N_spins random floats between 0 and 1
-  arma::mat rs(n_iter, N_spins, arma::fill::randu);
-
+  
   //For test
   //int rejected = 0;
   //int accepted = 0;
@@ -196,14 +193,13 @@ void Lattice::markov_mc(int n_iter)
       int j_ind = rand_js(j);
 
       //Find magnetization and energy of the spin that is going to flip
-      int E_s0 = energy_single(i_ind, j_ind );  
+      int E_s0 = energy_single(i_ind, j_ind);  
 
-      //change the spin
+      //change one spin
       change_spin(i_ind, j_ind);
 
       //Find magnetization and energy after the spin is flipped
-      int new_spin = spins(i_ind, j_ind);
-      int E_s1 = energy_single(i_ind, j_ind );
+      int E_s1 = energy_single(i_ind, j_ind);
 
       //Find the change in magnetization and energy
       int dE = E_s1 - E_s0; 
@@ -218,7 +214,7 @@ void Lattice::markov_mc(int n_iter)
 
       if (A < rs(j))
       {
-        //New state rejected
+        //New state rejected, change spin back
         change_spin(i_ind, j_ind);
 
         //rejected += 1;
@@ -226,7 +222,7 @@ void Lattice::markov_mc(int n_iter)
       else
       {
         //New state accepted
-        M_new += new_spin*2;
+        M_new += spins(i_ind, j_ind)*2;
         E_new += dE;
 
 
@@ -234,11 +230,10 @@ void Lattice::markov_mc(int n_iter)
       }
     }
 
+    //write new values into matrix
     ME(i,0) = M_new;
     ME(i,1) = E_new;
-    //std::cout << "M" <<std::endl;
-    //std::cout << ME(i,0) << std::endl;
-    //std::cout << std::endl;
+
     //Write to file
 
     iter++;
@@ -249,13 +244,13 @@ void Lattice::markov_mc(int n_iter)
       std::cout << iter << std::endl;
       std::cout << std::endl;
 
-      std::cout << "Energy" << std::endl;
-      std::cout << E_new << std::endl;
-      std::cout << std::endl;
+      //std::cout << "Energy" << std::endl;
+      //std::cout << E_new << std::endl;
+      //std::cout << std::endl;
 
-      std::cout << "Magnetization" << std::endl;
-      std::cout << M_new << std::endl;
-      std::cout << std::endl;
+      //std::cout << "Magnetization" << std::endl;
+      //std::cout << M_new << std::endl;
+      //std::cout << std::endl;
 
       //std::cout << "accepted changes" <<std::endl;
       //std::cout << accepted << std::endl;
