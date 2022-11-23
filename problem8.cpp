@@ -1,14 +1,5 @@
 /*
-See description in README.txt
-Build: 
-g++ -O3 main_omp_outer_loop.cpp -fopenmp -o main_omp_outer_loop.exe
-Run: 
-./main_omp_outer_loop.exe <A_min> <A_max> <n_A> <output_file_name>
-
-
- g++ -O3 main_omp_outer_loop.cpp src/lattice.cpp -I include -fopenmp -o main_omp_outer_loop.exe -larmadillo
-
- 
+g++ -O3 problem8.cpp src/lattice.cpp -I include -fopenmp -o problem8.exe -larmadillo 
 */
 
 #include "omp.h"  // OpenMP header
@@ -20,21 +11,22 @@ Run:
 #include <cmath>
 #include "lattice.hpp"
 
-
 using namespace std;
 
 int main()
 {
-
   // Read command line arguments
-  const double T_min = 2.18; //min temperature
-  const double T_max = 2.28; //max temperature
-  const int n_T = 20; // number of steps
+  const double T_min = 2.20; //min temperature
+  const double T_max = 2.35; //max temperature
+  const int n_T = 28; // number of steps
   const int burnin = 20000;
-  const int N = 100;
+  const int N = 80;
   const double J = 1;
   const bool ordered = false;
-  const int n_iter = 10e5;
+  const int n_iter = 2*10e5;
+  const string filename = "TME_N80_20T_5";
+  const double delta_T = (T_max - T_min) / (n_T - 1);  // nT points
+  const int N_threads = 7;
 
   std::cout << "N" << std::endl;
   std::cout << N << std::endl;
@@ -44,45 +36,45 @@ int main()
   std::cout << n_iter << std::endl;
   std::cout << std::endl;
   
-  // 
-  // Outer loop over A values
-  // 
+  arma::mat TME = arma::mat(n_T,5).fill(0.); //Initialize matrix outside of parallel block
 
-  const double delta_T = (T_max - T_min) / (n_T - 1);  // n_A points correspond to (n_A - 1) intervals
-
-  arma::mat TME = arma::mat(n_T,5);
-
-  #pragma omp parallel // Start parallel region
-  {
-
-    // Here we start the parallelized loop over A
+  #pragma omp parallel num_threads(N_threads)// Start parallel region
+  {//Start prallel block
+    // Here we start the parallelized loop over T
     #pragma omp for
     for (int i = 0; i < n_T; ++i)
     {
-        double T = T_min + i * delta_T;
+        arma::vec E,M,E2,M2;
+        double T;
+        
+        T = T_min + i * delta_T;
 
         Lattice lattice = Lattice(N,J,ordered,T);
         lattice.markov_mc(n_iter);
 
-        arma::vec E = lattice.ME.col(1);
-        arma::vec M = lattice.ME.col(0);
+        E = lattice.ME.col(1);
+        M = arma::abs(lattice.ME.col(0));
+        M2 = arma::pow(M,2);
+        E2 = arma::pow(E,2);
 
-        E.shed_rows(0,burnin);
-        M.shed_rows(0,burnin);
+        // if burnin
+        //E.shed_rows(0,burnin);
+        //M.shed_rows(0,burnin);
 
+        #pragma omp critical  //For safety
+        {
         TME(i,0) = T;
         TME(i,1) = arma::mean(M);
         TME(i,2) = arma::mean(E);
-        TME(i,3) = arma::mean(M%M);
-        TME(i,4) = arma::mean(E%E);
+        TME(i,3) = arma::mean(M2);
+        TME(i,4) = arma::mean(E2);
+        }
 
-    } // End parallelized loop over 
+    } // End parallelized loop 
+  } // End parallel\ block
 
-  } // End entire parallel region
-
-  TME.save("TME_N100_20T", arma::csv_ascii);
-
-  // And all was well
+  //save file
+  TME.save(filename, arma::csv_ascii);
   return 0;
 }
 
