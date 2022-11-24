@@ -1,7 +1,5 @@
 # FYS4150-Project-4
-Project 4 computational physics:
-
-Wohooo another one let's go!
+Project 4 computational physics: Jupyter is ok i guess
 
 problem 4,5 and 6: data is generated with is with
 
