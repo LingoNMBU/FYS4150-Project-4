@@ -24,7 +24,7 @@ int main()
   const double J = 1;
   const bool ordered = false;
   const int n_iter = 2*10e5;
-  const string filename = "TME_N80_20T_5";
+  const string filename = "TME_N80";
   const double delta_T = (T_max - T_min) / (n_T - 1);  // nT points
   const int N_threads = 7;
 
