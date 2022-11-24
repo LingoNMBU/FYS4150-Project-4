@@ -1,12 +1,13 @@
 # FYS4150-Project-4
 Project 4 computational physics: Jupyter is ok i guess
 
-problem 4,5 and 6: data is generated with is with
+problem 4,5 and 6: data is generated with:
 
 g++ -O3 problem4_5_6.cpp src/lattice.cpp -I include -o problem4_5_6.cpp.exe -larmadillo 
 &
 ./problem4_5_6.exe
 
+\n
 
 problem 8: data is generated with the following:
 
