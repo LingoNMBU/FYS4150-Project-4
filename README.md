@@ -3,11 +3,12 @@ Project 4 computational physics:
 
 Wohooo another one let's go!
 
-problem 4,5 and 6: data is generated with is compiled with
+problem 4,5 and 6: data is generated with is with
 
 g++ -O3 problem4_5_6.cpp src/lattice.cpp -I include -o problem4_5_6.cpp.exe -larmadillo 
 &
 ./problem4_5_6.exe
+
 
 problem 8: data is generated with the following:
 
@@ -19,3 +20,5 @@ different lattice sizes are modified in the cpp file
 
 
 problem 9 is completed in the Jupyter Notebook problem9.ipynb
+
+Plotting is done in the relevant jupyter notebooks, filepaths for imports may need modification
